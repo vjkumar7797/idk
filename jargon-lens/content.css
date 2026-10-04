@@ -36,3 +36,6 @@
 #jt-card .jt-hw.has-tr { border-bottom: 1px dotted #888; cursor: help; }
 #jt-card .jt-hw.has-tr:hover .jt-o { display: none; }
 #jt-card .jt-hw.has-tr:hover .jt-t { display: inline; }
+
+/* on YouTube, hide the player's own caption line while ours is showing */
+.jt-yt .ytp-caption-window-container { visibility: hidden !important; }

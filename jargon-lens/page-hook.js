@@ -37,8 +37,28 @@
     window.addEventListener('message', async ev => {
       if (ev.source !== window || !ev.data || ev.data.type !== 'JT_REQUEST_CUES') return;
       const r = await loadCues();
-      send(r.cues, r.videoId);
+      if (r.cues.length) return send(r.cues, r.videoId);
+      enableCaptionsOnce(r.videoId);   // direct fetch gave nothing: let the player download them itself
     });
+
+    // Turn YouTube's captions on through the player's own API so it downloads the track (which the sniffer
+    // below picks up), then put things back the way the viewer had them.
+    const triedFor = new Set();
+    function enableCaptionsOnce(videoId) {
+      if (!videoId || triedFor.has(videoId)) return;
+      triedFor.add(videoId);
+      try {
+        const player = document.getElementById('movie_player');
+        const cur = player.getOption('captions', 'track');
+        if (cur && cur.languageCode) return;                     // viewer already has captions on: nothing to do
+        player.loadModule('captions');
+        const list = player.getOption('captions', 'tracklist') || [];
+        if (!list.length) { player.unloadModule('captions'); return; }
+        const pick = list.find(t => /^en/.test(t.languageCode)) || list[0];
+        player.setOption('captions', 'track', { languageCode: pick.languageCode });
+        setTimeout(() => { try { player.unloadModule('captions'); } catch (e) {} }, 5000);
+      } catch (e) {}
+    }
     // no return: the network sniffer below also runs on YouTube, so turning CC on
     // in the player works even if the direct fetch above is blocked.
   }

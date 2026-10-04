@@ -201,6 +201,7 @@
     const cue = state.cues.find(c => t >= c.start && t < c.end);
     let text = cue ? cue.text : '';
     if (!state.cues.length) text = liveText();
+    document.documentElement.classList.toggle('jt-yt', !!(ytId() && state.cues.length));
     document.documentElement.classList.toggle('jt-live', !state.cues.length && !!text);
     if (text !== state.cueText) { state.cueText = text; renderCue(text); if (!state.pinned) hideCard(); }
   }
