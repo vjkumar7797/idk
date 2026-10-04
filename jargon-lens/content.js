@@ -127,15 +127,20 @@
   function swapWord(span, part, word) {
     translate(word).then(tr => {
       if (!tr || !span.isConnected) return;
-      span.textContent = part.replace(word, tr);
+      // Keep the English visible; the native word is shown only while the cursor is on the word (CSS :hover).
+      const o = document.createElement('span'), t = document.createElement('span');
+      o.className = 'jt-o'; o.textContent = part;
+      t.className = 'jt-t'; t.textContent = part.replace(word, tr);
+      span.textContent = '';
+      span.append(o, t);
       span.classList.add('jt-swapped');
-      span.title = word;
     });
   }
 
-  const trLine = w => {
-    const lang = state.settings.nativeLang, tr = state.trText.get(lang + '|' + w.toLowerCase());
-    return tr ? `<div class="jt-tr">${esc(JT_LANGS[lang] || lang)}: <b>${esc(tr)}</b></div>` : '';
+  // Card headword: English by default, the native word while the cursor is on it.
+  const trSpan = w => {
+    const tr = state.trText.get(state.settings.nativeLang + '|' + w.toLowerCase());
+    return tr ? `<span class="jt-t">${esc(tr)}</span>` : '';
   };
 
   // ---------- caption rendering ----------
@@ -201,8 +206,8 @@
       : `<div class="jt-def">${esc(res.error || 'No meaning found.')}</div>`;
     const saved = !!state.saved[w.toLowerCase()];
     return `<div class="jt-entry" data-word="${esc(w)}">
-      <div class="jt-head"><b>${esc(w)}</b> <span>${esc(res.phonetic || '')}</span><small>${esc(res.source)}</small></div>
-      ${trLine(w)}${body}
+      <div class="jt-head"><b class="jt-hw${trSpan(w) ? ' has-tr' : ''}"><span class="jt-o">${esc(w)}</span>${trSpan(w)}</b> <span>${esc(res.phonetic || '')}</span><small>${esc(res.source)}</small></div>
+      ${body}
       <div class="jt-actions">
         <button data-act="explain">Explain simply (AI)</button>
         <button data-act="save">${saved ? '★ Saved' : '☆ Save'}</button>
@@ -239,7 +244,8 @@
       slots[i].replaceWith(el);
       // add the native-language line as soon as the translation is ready
       translate(w).then(tr => {
-        if (tr && el.isConnected && !el.querySelector('.jt-tr')) el.querySelector('.jt-head').insertAdjacentHTML('afterend', trLine(w));
+        const hw = el.querySelector('.jt-hw');
+        if (tr && hw && el.isConnected && !hw.querySelector('.jt-t')) { hw.insertAdjacentHTML('beforeend', trSpan(w)); hw.classList.add('has-tr'); }
       });
     }));
   }
