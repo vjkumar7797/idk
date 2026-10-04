@@ -104,6 +104,18 @@
       capLine.append(span);
     }
     if (state.video.paused) markHard();
+    prefetch(text);
+  }
+
+  // Look hard words up in the background so the card is already cached when you hover.
+  const prefetched = new Set();
+  function prefetch(text) {
+    for (const w of text.split(/\s+/).map(x => x.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, '')).filter(isHard).slice(0, 4)) {
+      const k = w.toLowerCase();
+      if (prefetched.has(k)) continue;
+      prefetched.add(k);
+      chrome.runtime.sendMessage({ type: 'lookup', word: w, prefetch: true }).catch(() => {});
+    }
   }
 
   function markHard() {
@@ -116,6 +128,7 @@
   function tick() {
     const v = state.video = pickVideo() || state.video;
     if (!v) return;
+    if (!state.warmed) { state.warmed = true; chrome.runtime.sendMessage({ type: 'warm' }).catch(() => {}); }
     mount(); position(); ensureCues();
     const t = v.currentTime;
     const cue = state.cues.find(c => t >= c.start && t < c.end);
@@ -160,15 +173,18 @@
     }
   };
 
-  async function showWords(words, anchor, pin) {
+  function showWords(words, anchor, pin) {
     card.hidden = false;
     state.pinned = !!pin;
-    card.innerHTML = '<div class="jt-loading">Looking up…</div>';
-    const results = await Promise.all(words.map(w => ask(w)));
-    card.innerHTML = results.map(r => entryHTML(r)).join('');
+    // Show every word's slot immediately, then fill each as soon as its answer is ready.
+    card.innerHTML = words.map(w => `<div class="jt-entry" data-word="${esc(w)}"><div class="jt-head"><b>${esc(w)}</b></div><div class="jt-loading">Looking up…</div></div>`).join('');
     const ar = anchor.getBoundingClientRect(), rr = root.getBoundingClientRect();
     card.style.left = Math.max(8, Math.min(ar.left - rr.left, rr.width - 360)) + 'px';
     card.style.bottom = (rr.bottom - ar.top + 8) + 'px';
+    const slots = [...card.querySelectorAll('.jt-entry')];
+    words.forEach((w, i) => ask(w).then(r => {
+      if (slots[i].isConnected) slots[i].outerHTML = entryHTML(r);
+    }));
   }
 
   // ---------- interactions ----------
@@ -177,7 +193,7 @@
     const s = e.target.closest('.jt-w[data-word]');
     if (!s || state.pinned) return;
     clearTimeout(hoverTimer);
-    hoverTimer = setTimeout(() => showWords([s.dataset.word], s, false), 350);
+    hoverTimer = setTimeout(() => showWords([s.dataset.word], s, false), 150);
   });
   capLine.addEventListener('mouseout', () => { clearTimeout(hoverTimer); if (!state.pinned) hideCard(); });
   capLine.addEventListener('click', e => {
