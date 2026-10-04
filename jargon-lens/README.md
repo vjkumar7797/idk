@@ -11,7 +11,7 @@ Lookup order (all free, no API keys): `dictionaryapi.dev` → Wikipedia summary 
 
 ## Install
 1. `chrome://extensions` → enable Developer mode → **Load unpacked** → pick this folder.
-2. For the AI fallback: install [Ollama](https://ollama.com), `ollama pull llama3.2`, then start it with
+2. For the AI fallback: use your existing [Ollama](https://ollama.com) models: `ollama list` (any installed model works; set it in the popup), then start it with
    `OLLAMA_ORIGINS="chrome-extension://*" ollama serve` (needed so Ollama accepts requests from the extension).
 
 ## Limits (v1)

@@ -18,7 +18,7 @@ async function render() {
 }
 async function saveSettings() {
   const { settings = {} } = await chrome.storage.local.get('settings');
-  await chrome.storage.local.set({ settings: { ...settings, autoHighlight: $('auto').checked, ollamaModel: $('model').value.trim() || 'llama3.2' } });
+  await chrome.storage.local.set({ settings: { ...settings, autoHighlight: $('auto').checked, ollamaModel: $('model').value.trim() || 'qwen3.8-4b-distill-tuned:latest' } });
 }
 $('auto').onchange = saveSettings; $('model').onchange = saveSettings;
 $('clearKnown').onclick = () => chrome.storage.local.set({ known: [] });

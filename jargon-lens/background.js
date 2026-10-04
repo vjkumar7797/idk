@@ -1,5 +1,5 @@
 // Looks words up. Order: free dictionary API -> Wikipedia -> local Ollama.
-const DEFAULTS = { ollamaModel: 'llama3.2', autoHighlight: true };
+const DEFAULTS = { ollamaModel: 'qwen3.8-4b-distill-tuned:latest', autoHighlight: true };
 const memCache = new Map();
 
 async function getSettings() {
@@ -39,7 +39,13 @@ async function fromWikipedia(word) {
 }
 
 async function fromOllama(word, context) {
-  const { ollamaModel } = await getSettings();
+  let { ollamaModel } = await getSettings();
+  // If the chosen model isn't installed, fall back to the first one Ollama lists.
+  try {
+    const tags = await (await fetch('http://localhost:11434/api/tags')).json();
+    const names = (tags.models || []).map(m => m.name);
+    if (names.length && !names.includes(ollamaModel)) ollamaModel = names[0];
+  } catch (e) {}
   const prompt =
     `Explain the term "${word}" to someone who finds jargon confusing.\n` +
     (context ? `It was said in this sentence: "${context}"\n` : '') +
@@ -49,10 +55,10 @@ async function fromOllama(word, context) {
   const r = await fetch('http://localhost:11434/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: ollamaModel, prompt, stream: false, options: { temperature: 0.3 } })
+    body: JSON.stringify({ model: ollamaModel, prompt, stream: false, think: false, options: { temperature: 0.3 } })
   });
   if (!r.ok) throw new Error('Ollama returned ' + r.status);
-  const text = (await r.json()).response || '';
+  const text = ((await r.json()).response || '').replace(/<think>[\s\S]*?<\/think>/g, '');
   const meaning = (text.match(/MEANING:\s*(.+)/i) || [])[1];
   const example = (text.match(/EXAMPLE:\s*(.+)/i) || [])[1];
   if (!meaning) return null;
