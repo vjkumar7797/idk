@@ -59,9 +59,20 @@
     }
   });
 
+  // Sites like Prime Video draw subtitles as plain page text; read that when no timed cues exist.
+  const LIVE_SEL = ['.atvwebplayersdk-captions-text', '.player-timedtext', '.jw-captions', '.vjs-text-track-display', '.plyr__captions'];
+  function liveText() {
+    for (const sel of LIVE_SEL) {
+      const t = [...document.querySelectorAll(sel)].map(e => e.textContent.trim()).filter(Boolean).join(' ');
+      if (t) return t.replace(/\s+/g, ' ');
+    }
+    return '';
+  }
+
   function ensureCues() {
     const v = state.video;
     if (!v) return;
+    if (state.href !== location.href) { state.href = location.href; state.cues = []; state.cuesFor = null; }
     if (/youtube\.com$/.test(location.hostname)) {
       const id = new URLSearchParams(location.search).get('v');
       if (id && state.cuesFor !== id) { state.cues = []; window.postMessage({ type: 'JT_REQUEST_CUES' }, '*'); }
@@ -108,7 +119,9 @@
     mount(); position(); ensureCues();
     const t = v.currentTime;
     const cue = state.cues.find(c => t >= c.start && t < c.end);
-    const text = cue ? cue.text : '';
+    let text = cue ? cue.text : '';
+    if (!state.cues.length) text = liveText();
+    document.documentElement.classList.toggle('jt-live', !state.cues.length && !!text);
     if (text !== state.cueText) { state.cueText = text; renderCue(text); if (!state.pinned) hideCard(); }
   }
   setInterval(tick, 150);

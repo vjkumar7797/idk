@@ -23,3 +23,7 @@
 #jt-card button { background: #33333c; color: #eee; border: 0; border-radius: 6px; padding: 3px 8px; font-size: 12px; cursor: pointer; }
 #jt-card button:hover { background: #4a4a56; }
 #jt-card a { color: #8ab4ff; font-size: 12px; }
+
+/* when we read a site's own caption text, hide the original so the line isn't doubled */
+.jt-live .atvwebplayersdk-captions-text, .jt-live .player-timedtext, .jt-live .jw-captions,
+.jt-live .vjs-text-track-display, .jt-live .plyr__captions { visibility: hidden !important; }

@@ -3,26 +3,46 @@
   "name": "Jargon Lens",
   "version": "0.1.0",
   "description": "Hover, click or pause on a caption word while watching a video to get a plain-English meaning and examples, right on the page.",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://api.dictionaryapi.dev/*",
     "https://en.wikipedia.org/*",
     "http://localhost:11434/*"
   ],
-  "background": { "service_worker": "background.js" },
-  "action": { "default_popup": "popup.html", "default_title": "Jargon Lens" },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Jargon Lens"
+  },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["page-hook.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "page-hook.js"
+      ],
       "world": "MAIN",
-      "run_at": "document_start"
+      "run_at": "document_start",
+      "all_frames": true
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["common-words.js", "content.js"],
-      "css": ["content.css"],
-      "run_at": "document_idle"
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "common-words.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ]
 }
