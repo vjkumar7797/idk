@@ -1,0 +1,25 @@
+#jt-root { position: fixed; z-index: 2147483647; pointer-events: none; font-family: system-ui, sans-serif; }
+#jt-caption {
+  position: absolute; left: 50%; bottom: 9%; transform: translateX(-50%);
+  max-width: 80%; text-align: center; font-size: clamp(16px, 2vw, 28px); line-height: 1.4;
+  color: #fff; text-shadow: 0 0 4px #000, 0 0 2px #000; pointer-events: auto; user-select: text;
+}
+#jt-caption:empty { display: none; }
+#jt-caption .jt-w { background: rgba(0,0,0,.6); cursor: pointer; padding: 1px 0; }
+#jt-caption .jt-w[data-word]:hover { background: rgba(255,214,0,.35); border-radius: 3px; }
+#jt-caption .jt-hard { background: rgba(255,214,0,.85); color: #000; text-shadow: none; border-radius: 3px; }
+#jt-card {
+  position: absolute; width: 340px; max-height: 60%; overflow: auto; pointer-events: auto;
+  background: #1e1e24; color: #eee; border-radius: 10px; padding: 10px 12px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.5); font-size: 14px; line-height: 1.45;
+}
+#jt-card .jt-entry + .jt-entry { border-top: 1px solid #444; margin-top: 8px; padding-top: 8px; }
+#jt-card .jt-head b { font-size: 17px; color: #ffd600; }
+#jt-card .jt-head span { color: #aaa; margin-left: 6px; }
+#jt-card .jt-head small { float: right; color: #888; font-size: 11px; }
+#jt-card .jt-def i { color: #8ab4ff; margin-right: 4px; }
+#jt-card .jt-ex { color: #b9b9c4; margin: 2px 0 6px 10px; }
+#jt-card .jt-actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+#jt-card button { background: #33333c; color: #eee; border: 0; border-radius: 6px; padding: 3px 8px; font-size: 12px; cursor: pointer; }
+#jt-card button:hover { background: #4a4a56; }
+#jt-card a { color: #8ab4ff; font-size: 12px; }

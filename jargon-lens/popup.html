@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  body { width: 340px; font: 13px system-ui, sans-serif; margin: 10px; }
+  h3 { margin: 8px 0 4px; } label { display: block; margin: 4px 0; }
+  input[type=text] { width: 140px; }
+  .w { border-bottom: 1px solid #ddd; padding: 4px 0; } .w b { font-size: 14px; }
+  .w small { display: block; color: #666; } button { margin-right: 6px; }
+</style>
+<h3>Settings</h3>
+<label><input type="checkbox" id="auto"> Highlight hard words &amp; explain on pause</label>
+<label>Ollama model <input type="text" id="model" placeholder="llama3.2"></label>
+<h3>Saved words (<span id="n">0</span>)</h3>
+<div id="list"></div>
+<button id="csv">Export CSV</button><button id="clearKnown">Reset "I know this"</button>
+<script src="popup.js"></script>
