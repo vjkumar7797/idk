@@ -100,7 +100,8 @@ async function lookup(word, context, forceLLM) {
 
 chrome.runtime.onMessage.addListener((msg, _sender, send) => {
   if (msg.type === 'lookup') {
-    lookup(msg.word, msg.context, msg.forceLLM).then(send);
+    lookup(msg.word, msg.context, msg.forceLLM).then(send).catch(e =>
+      send({ word: msg.word, source: 'none', entries: [], error: 'Lookup failed: ' + (e && e.message || e) }));
     return true;
   }
   if (msg.type === 'getSettings') { getSettings().then(send); return true; }

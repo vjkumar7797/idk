@@ -149,7 +149,16 @@
       </div></div>`;
   }
 
-  const ask = (word, forceLLM) => chrome.runtime.sendMessage({ type: 'lookup', word, context: state.cueText, forceLLM });
+  // Never throws: if the extension was reloaded or its worker died, show that on the card instead.
+  const ask = async (word, forceLLM) => {
+    const fail = error => ({ word, source: 'none', entries: [], error });
+    try {
+      const r = await chrome.runtime.sendMessage({ type: 'lookup', word, context: state.cueText, forceLLM });
+      return r || fail('No reply from the extension. Reload this tab and try again.');
+    } catch (e) {
+      return fail('Extension error (' + (e && e.message || e) + '). If you just reloaded the extension, reload this tab.');
+    }
+  };
 
   async function showWords(words, anchor, pin) {
     card.hidden = false;
