@@ -7,6 +7,8 @@ A free, no-build Chrome/Edge extension (Manifest V3). While a video plays it dra
 - **Pause** → hard words in the current line are highlighted and explained automatically.
 - **Save** words (popup → export CSV), or **I know this** to stop highlighting a word.
 
+**Native-language swap:** pick your language in the popup (default Telugu). Hard words in the caption are replaced by their translation (dotted underline); hover shows the original word, the definition card also shows the translation. Translation uses Chrome's on-device Translator when its language pack is installed (popup → *Prepare Chrome translator*), otherwise your local Ollama model. Subtitles are assumed to be English.
+
 Lookup order (all free, no API keys): `dictionaryapi.dev` → Wikipedia summary → local **Ollama** (also behind "Explain simply (AI)").
 
 ## Install

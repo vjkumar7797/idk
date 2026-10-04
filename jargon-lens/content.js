@@ -1,12 +1,12 @@
 (() => {
   if (window.top !== window) { /* still run in iframes with videos */ }
-  const state = { video: null, cues: [], cueText: '', settings: { autoHighlight: true }, known: new Set(), saved: {}, pinned: false };
+  const state = { video: null, cues: [], cueText: '', settings: { autoHighlight: true, nativeLang: 'te', swapWords: true }, trText: new Map(), trCache: new Map(), known: new Set(), saved: {}, pinned: false };
 
   // ---------- storage ----------
   const loadStore = () => chrome.storage.local.get(['known', 'words', 'settings']).then(s => {
     state.known = new Set(s.known || []);
     state.saved = s.words || {};
-    state.settings = { autoHighlight: true, ...(s.settings || {}) };
+    state.settings = { autoHighlight: true, nativeLang: 'te', swapWords: true, ...(s.settings || {}) };
   });
   loadStore();
   chrome.storage.onChanged.addListener(loadStore);
@@ -90,6 +90,54 @@
     return w.length >= 7;
   }
 
+  // ---------- translation (Chrome's on-device Translator first, local Ollama as fallback) ----------
+  const chromeTranslators = {};
+  async function chromeTranslate(text, lang) {
+    if (!('Translator' in self)) return null;
+    if (!chromeTranslators[lang]) {
+      chromeTranslators[lang] = (async () => {
+        const opts = { sourceLanguage: 'en', targetLanguage: lang };
+        // Only use it when the language pack is already installed (the popup's "Prepare" button downloads it).
+        if ((await Translator.availability(opts)) !== 'available') return null;
+        return Translator.create(opts);
+      })().catch(() => null);
+    }
+    const t = await chromeTranslators[lang];
+    if (!t) return null;
+    try { return (await t.translate(text)) || null; } catch (e) { return null; }
+  }
+
+  function translate(word) {
+    const lang = state.settings.nativeLang, key = lang + '|' + word.toLowerCase();
+    if (state.trCache.has(key)) return state.trCache.get(key);
+    const p = (async () => {
+      let text = await chromeTranslate(word, lang);
+      if (!text) {
+        const r = await chrome.runtime.sendMessage({ type: 'translate', word, context: state.cueText, lang }).catch(() => null);
+        text = r && r.text;
+      }
+      if (text) state.trText.set(key, text); else state.trCache.delete(key);
+      return text || null;
+    })();
+    state.trCache.set(key, p);
+    return p;
+  }
+
+  // Replace a hard word in the caption with its translation; the original shows on hover and in the card.
+  function swapWord(span, part, word) {
+    translate(word).then(tr => {
+      if (!tr || !span.isConnected) return;
+      span.textContent = part.replace(word, tr);
+      span.classList.add('jt-swapped');
+      span.title = word;
+    });
+  }
+
+  const trLine = w => {
+    const lang = state.settings.nativeLang, tr = state.trText.get(lang + '|' + w.toLowerCase());
+    return tr ? `<div class="jt-tr">${esc(JT_LANGS[lang] || lang)}: <b>${esc(tr)}</b></div>` : '';
+  };
+
   // ---------- caption rendering ----------
   function renderCue(text) {
     capLine.textContent = '';
@@ -102,6 +150,7 @@
       span.textContent = part;
       if (word) span.dataset.word = word;
       capLine.append(span);
+      if (word && state.settings.swapWords && isHard(word)) swapWord(span, part, word);
     }
     if (state.video.paused) markHard();
     prefetch(text);
@@ -153,7 +202,7 @@
     const saved = !!state.saved[w.toLowerCase()];
     return `<div class="jt-entry" data-word="${esc(w)}">
       <div class="jt-head"><b>${esc(w)}</b> <span>${esc(res.phonetic || '')}</span><small>${esc(res.source)}</small></div>
-      ${body}
+      ${trLine(w)}${body}
       <div class="jt-actions">
         <button data-act="explain">Explain simply (AI)</button>
         <button data-act="save">${saved ? '★ Saved' : '☆ Save'}</button>
@@ -183,7 +232,15 @@
     card.style.bottom = (rr.bottom - ar.top + 8) + 'px';
     const slots = [...card.querySelectorAll('.jt-entry')];
     words.forEach((w, i) => ask(w).then(r => {
-      if (slots[i].isConnected) slots[i].outerHTML = entryHTML(r);
+      if (!slots[i].isConnected) return;
+      const t = document.createElement('template');
+      t.innerHTML = entryHTML(r);
+      const el = t.content.firstElementChild;
+      slots[i].replaceWith(el);
+      // add the native-language line as soon as the translation is ready
+      translate(w).then(tr => {
+        if (tr && el.isConnected && !el.querySelector('.jt-tr')) el.querySelector('.jt-head').insertAdjacentHTML('afterend', trLine(w));
+      });
     }));
   }
 

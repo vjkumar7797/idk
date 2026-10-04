@@ -1,5 +1,6 @@
+importScripts('langs.js');
 // Looks words up. Order: free dictionary API -> Wikipedia -> local Ollama.
-const DEFAULTS = { ollamaModel: 'qwen3.8-4b-distill-tuned:latest', autoHighlight: true };
+const DEFAULTS = { ollamaModel: 'qwen3.8-4b-distill-tuned:latest', autoHighlight: true, nativeLang: 'te', swapWords: true };
 const memCache = new Map();
 let modelCache = { configured: null, name: null };
 
@@ -90,6 +91,31 @@ async function fromOllama(word, context) {
   return { source: 'Ollama (' + ollamaModel + ')', entries: [{ pos: 'in context', def: meaning.trim(), example: (example || '').trim() }] };
 }
 
+// Fallback translator (used when Chrome's built-in one can't do the language): local Ollama model.
+async function translateOllama(word, context, lang) {
+  const name = JT_LANGS[lang] || lang;
+  const key = lang + '|' + word.toLowerCase();
+  const { trCache = {} } = await chrome.storage.local.get('trCache');
+  if (trCache[key]) return { text: trCache[key] };
+  const prompt =
+    `Translate the English word or term "${word}" into ${name}, as it is used in this sentence: "${context || word}"\n` +
+    `Reply with ONLY the ${name} translation (one word or short phrase, in ${name} script). No quotes, no explanation.`;
+  const r = await fetchT('http://localhost:11434/api/generate', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: await pickModel(), prompt, stream: false, think: false, keep_alive: '30m',
+      options: { temperature: 0.1, num_predict: 40 } })
+  }, 60000);
+  if (!r.ok) throw new Error('Ollama returned ' + r.status);
+  let text = ((await r.json()).response || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  text = text.split('\n')[0].replace(/^["'“‘`]+|["'”’`.。]+$/g, '').trim();
+  if (!text) throw new Error('empty translation');
+  trCache[key] = text;
+  const keys = Object.keys(trCache);
+  if (keys.length > 2000) delete trCache[keys[0]];
+  await chrome.storage.local.set({ trCache });
+  return { text };
+}
+
 async function lookup(word, context, forceLLM, prefetch) {
   const key = word.toLowerCase();
   if (!forceLLM && memCache.has(key)) return memCache.get(key);
@@ -129,6 +155,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, send) => {
   if (msg.type === 'lookup') {
     lookup(msg.word, msg.context, msg.forceLLM, msg.prefetch).then(send).catch(e =>
       send({ word: msg.word, source: 'none', entries: [], error: 'Lookup failed: ' + (e && e.message || e) }));
+    return true;
+  }
+  if (msg.type === 'translate') {
+    translateOllama(msg.word, msg.context, msg.lang).then(send).catch(e => send({ error: String(e && e.message || e) }));
     return true;
   }
   if (msg.type === 'warm') { warmOllama(); return false; }

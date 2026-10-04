@@ -27,3 +27,7 @@
 /* when we read a site's own caption text, hide the original so the line isn't doubled */
 .jt-live .atvwebplayersdk-captions-text, .jt-live .player-timedtext, .jt-live .jw-captions,
 .jt-live .vjs-text-track-display, .jt-live .plyr__captions { visibility: hidden !important; }
+
+#jt-caption .jt-swapped { border-bottom: 2px dotted #ffd600; }
+#jt-card .jt-tr { margin: 2px 0 4px; color: #9be29b; }
+#jt-card .jt-tr b { font-size: 16px; }

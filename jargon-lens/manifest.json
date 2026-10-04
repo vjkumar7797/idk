@@ -35,6 +35,7 @@
         "<all_urls>"
       ],
       "js": [
+        "langs.js",
         "common-words.js",
         "content.js"
       ],
