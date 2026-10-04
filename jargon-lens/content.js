@@ -52,10 +52,15 @@
     return out;
   }
 
+  const ytId = () => /youtube\.com$/.test(location.hostname) ? new URLSearchParams(location.search).get('v') : null;
+  const pageKey = () => location.pathname + '|' + (new URLSearchParams(location.search).get('v') || '');
+
   window.addEventListener('message', ev => {
     if (ev.source === window && ev.data && ev.data.type === 'JT_CUES' && ev.data.cues.length) {
+      const cur = ytId();
+      if (cur && ev.data.videoId && ev.data.videoId !== cur) return;   // stale data from the previous video
       state.cues = ev.data.cues;
-      state.cuesFor = ev.data.videoId;
+      state.cuesFor = ev.data.videoId || cur;
     }
   });
 
@@ -72,10 +77,18 @@
   function ensureCues() {
     const v = state.video;
     if (!v) return;
-    if (state.href !== location.href) { state.href = location.href; state.cues = []; state.cuesFor = null; }
-    if (/youtube\.com$/.test(location.hostname)) {
-      const id = new URLSearchParams(location.search).get('v');
-      if (id && state.cuesFor !== id) { state.cues = []; window.postMessage({ type: 'JT_REQUEST_CUES' }, '*'); }
+    if (state.pageKey !== pageKey()) { state.pageKey = pageKey(); state.cues = []; state.cuesFor = null; state.ytTries = 0; state.ytLast = 0; }
+    const id = ytId();
+    if (id) {
+      if (state.cuesFor !== id) {
+        state.cues = [];
+        // Ask the page for the caption track, but gently: every 3s, at most 12 times per video.
+        const now = Date.now();
+        if ((state.ytTries || 0) < 12 && now - (state.ytLast || 0) > 3000) {
+          state.ytLast = now; state.ytTries = (state.ytTries || 0) + 1;
+          window.postMessage({ type: 'JT_REQUEST_CUES' }, '*');
+        }
+      }
     } else if (!state.cues.length) {
       state.cues = loadTextTracks(v);
     }

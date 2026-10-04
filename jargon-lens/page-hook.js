@@ -39,7 +39,8 @@
       const r = await loadCues();
       send(r.cues, r.videoId);
     });
-    return;
+    // no return: the network sniffer below also runs on YouTube, so turning CC on
+    // in the player works even if the direct fetch above is blocked.
   }
 
   // ---------------- Other sites: sniff subtitle downloads ----------------
@@ -74,11 +75,24 @@
     const tt = doc.documentElement;
     const tr = tt && (tt.getAttribute('ttp:tickRate') || tt.getAttribute('tickRate'));
     if (tr) tickRate = +tr;
-    return [...doc.getElementsByTagName('p')].map(p => ({
-      start: clock(p.getAttribute('begin')),
-      end: clock(p.getAttribute('end')),
-      text: clean(p.innerHTML.replace(/<br\s*\/?>/gi, ' '))
-    })).filter(c => c.text && !isNaN(c.start) && !isNaN(c.end));
+    const els = [...doc.getElementsByTagName('p'), ...doc.getElementsByTagName('text')];
+    return els.map(e => {
+      let start, end;
+      if (e.hasAttribute('begin')) { start = clock(e.getAttribute('begin')); end = clock(e.getAttribute('end')); }
+      else if (e.hasAttribute('t')) { start = +e.getAttribute('t') / 1000; end = start + (+e.getAttribute('d') || 2000) / 1000; }   // YouTube srv3
+      else if (e.hasAttribute('start')) { start = +e.getAttribute('start'); end = start + (+e.getAttribute('dur') || 2); }           // YouTube legacy xml
+      else return null;
+      return { start, end, text: clean(e.innerHTML.replace(/<br\s*\/?>/gi, ' ')) };
+    }).filter(c => c && c.text && !isNaN(c.start) && !isNaN(c.end));
+  }
+  function parseJSON3(body) {          // YouTube's own caption format
+    try {
+      const j = JSON.parse(body);
+      return (j.events || []).filter(e => e.segs).map(e => ({
+        start: e.tStartMs / 1000, end: (e.tStartMs + (e.dDurationMs || 2000)) / 1000,
+        text: clean(e.segs.map(s => s.utf8).join(''))
+      })).filter(c => c.text);
+    } catch (e) { return []; }
   }
   function parseASS(text) {
     const cues = [];
@@ -96,6 +110,7 @@
   }
   function parse(body) {
     const head = body.slice(0, 600);
+    if (body.trimStart()[0] === '{') return parseJSON3(body);
     if (/^\s*WEBVTT/.test(head) || /^\s*\d+\s*\n\d+:\d+[:\d.,]*\s*-->/.test(head)) return parseVTT(body);
     if (/\[Script Info\]|\[Events\]/i.test(body.slice(0, 2000))) return parseASS(body);
     if (/<tt[\s>]|<tt:tt|<transcript|<timedtext/i.test(head)) return parseTTML(body);
@@ -108,10 +123,11 @@
     return letters.length > 10 && letters.replace(/[^A-Za-z]/g, '').length / letters.length > 0.85;
   };
 
-  let pool = new Map(), href = location.href;
+  let pool = new Map(), href = location.pathname + '|' + (new URLSearchParams(location.search).get('v') || '');
   function ingest(body) {
     try {
-      if (location.href !== href) { href = location.href; pool = new Map(); }
+      const key = location.pathname + '|' + (new URLSearchParams(location.search).get('v') || '');
+      if (key !== href) { href = key; pool = new Map(); }
       const cues = parse(body).filter(c => !isNaN(c.start) && !isNaN(c.end));
       if (!cues.length || !mostlyLatin(cues)) return;
       for (const c of cues) pool.set(c.start + '|' + c.text, c);
@@ -120,7 +136,7 @@
   }
   const maybeSubtitle = (url, type) =>
     /\.(vtt|srt|ttml2?|dfxp|ass|ssa|xml)(\?|#|$)/i.test(url) ||
-    /subtitle|caption|dfxp|ttml|webvtt/i.test(url) ||
+    /subtitle|caption|dfxp|ttml|webvtt|timedtext/i.test(url) ||
     /text\/vtt|ttml|ssa|subrip/i.test(type || '');
 
   const origFetch = window.fetch;
